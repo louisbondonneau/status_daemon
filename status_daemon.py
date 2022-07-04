@@ -512,6 +512,7 @@ class CheckStatus(Daemon):
                     self.influx_cmd(process)
 
         if (self.need_upload):
+            time.sleep(0.1)
             if (self.sql_filename is not None):
                 self.filter_sql_conflict()
                 if (self.target_user is not None) and (self.target_host is not None):
