@@ -14,7 +14,7 @@ import subprocess
 import socket
 import numpy as np
 
-Version = "00.01.10"
+Version = "00.01.11"
 DEBUG = False  # !!! the simple print in DEBUG cause crash after closing session
 Host_name = socket.gethostname()
 Deamon_name = 'Deamon_' + Host_name
@@ -512,17 +512,14 @@ class CheckStatus(Daemon):
                     self.influx_cmd(process)
 
         if (self.need_upload):
-            time.sleep(0.1)
             if (self.sql_filename is not None):
                 self.filter_sql_conflict()
                 if (self.target_user is not None) and (self.target_host is not None):
-                    # self.rsync(self.sql_filename, self.target_user, self.target_host, self.target_directory)
-                    self.rsync(self.sqldir + '*.sql', self.target_user, self.target_host, self.target_directory)
+                    self.scp(self.sqldir + '*.sql', self.target_user, self.target_host, self.target_directory)
             if (self.influx_filename is not None):
                 self.filter_influx_conflict()
                 if (self.target_user is not None) and (self.target_host is not None):
-                    # self.rsync(self.influx_filename, self.target_user, self.target_host, self.target_directory)
-                    self.rsync(self.influxdir + '*.influx', self.target_user, self.target_host, self.target_directory)
+                    self.scp(self.influxdir + '*.influx', self.target_user, self.target_host, self.target_directory)
 
         if (time.time() - self.last_update_time >= self.max_update_time - 0.5):
             self.last_update_time = time.time()
@@ -685,6 +682,26 @@ class CheckStatus(Daemon):
         except (subprocess.TimeoutExpired, subprocess.SubprocessError) as e:
             os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
             self.log.error('rsync error: [%s]' % e, objet='rsync')
+
+    def scp(self, source_file, target_user, target_host, target_directory):
+        cmd = "chmod 664 %s && " % (source_file)
+        cmd = cmd + "scp -p %s %s@%s:%s && " % (source_file, target_user, target_host, target_directory)
+        cmd = cmd + "rm %s" % (source_file)
+        proc = subprocess.Popen(cmd,
+                                start_new_session=True, shell=True)
+        try:
+            # self.log.log('Start Command: [%s]' % (cmd), objet='scp')
+            stdout_data, stderr_data = proc.communicate(timeout=900)
+            if proc.returncode != 0:
+                self.log.error(
+                    "%r failed, status code %s stdout %r stderr %r" % (
+                        cmd, proc.returncode,
+                        stdout_data, stderr_data), objet='scp')
+            else:
+                self.log.log('scp success: [%s]' % (cmd), objet='scp')
+        except (subprocess.TimeoutExpired, subprocess.SubprocessError) as e:
+            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+            self.log.error('scp error: [%s]' % e, objet='scp')
 
 class CONFIG_READER():
     def __init__(self, config_file, log_obj=None):
