@@ -426,12 +426,12 @@ class CheckStatus(Daemon):
         current_time = self.datetime_str.replace('T', '_').replace(':', '').replace('-', '')
         if (self.sqldir is not None):
             self.log.check_directory_validity(self.sqldir)
-            self.sql_filename = self.sqldir + current_time + '_' + str(self.id + Host_nb) + '.sql'
+            self.sql_filename = self.sqldir + current_time + '_' + str(self.id) + str(Host_nb) + '.sql'
         else:
             self.sql_filename = None
         if (self.influxdir is not None):
             self.log.check_directory_validity(self.influxdir)
-            self.influx_filename = self.influxdir + current_time + '_' + str(self.id + Host_nb) + '.influx'
+            self.influx_filename = self.influxdir + current_time + '_' + str(self.id) + str(Host_nb) + '.influx'
         else:
             self.influx_filename = None
 
