@@ -14,7 +14,7 @@ import subprocess
 import socket
 import numpy as np
 
-Version = "00.01.00"
+Version = "00.01.10"
 DEBUG = False  # !!! the simple print in DEBUG cause crash after closing session
 Host_name = socket.gethostname()
 Deamon_name = 'Deamon_' + Host_name
@@ -82,6 +82,9 @@ class Log_class():
                 print(istring, file=error_file)
                 if(DEBUG):
                     print('ERR: ' + istring)
+        with open(self.dir + self.logname + '.log', 'a') as log_file:
+            for istring in string:
+                print(istring, file=log_file)
 
     def __timing_string(self):
         time_string = datetime.now()
@@ -137,7 +140,7 @@ class Daemon(object):
     """
 
     def __init__(self):
-        self.ver = 0.1  # version
+        self.ver = Version  # version
         self.restartPause = 1    # 0 means without a pause between stop and start during the restart of the daemon
         self.waitToHardKill = 10  # when terminate a process, wait until kill the process with SIGTERM signal
         self.isReloadSignal = False
