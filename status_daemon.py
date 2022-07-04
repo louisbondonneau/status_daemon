@@ -522,6 +522,7 @@ class CheckStatus(Daemon):
 
         if (time.time() - self.last_update_time >= self.max_update_time - 0.5):
             self.last_update_time = time.time()
+            self.last_update_time = self.last_update_time - (self.last_update_time % self.max_update_time)
 
     def sql_cmd(self, process):
         status = self.target_process[process]['status']  # 'running', 'sleeping', 'stopped'
