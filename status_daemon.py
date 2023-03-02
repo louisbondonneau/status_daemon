@@ -502,8 +502,19 @@ class CheckStatus(Daemon):
                         return "{:.1f} {}B".format(size, unit)
                     size /= 1024.0
 
+            # Fonction pour lister les fichiers d'un dossier et de ses sous-dossiers de manière récursive
+            def list_files_recursive(folder_path):
+                file_list = []
+                for root, dirs, files in os.walk(folder_path):
+                    for name in files:
+                        file_path = os.path.join(root, name)
+                        file_size = os.path.getsize(file_path)
+                        file_mtime = os.path.getmtime(file_path)
+                        file_list.append((file_path, file_size, file_mtime))
+                return file_list
+
             # Créer une liste de tous les fichiers dans le dossier spécifié avec leur taille et date de modification
-            files = [(f.name, f.stat().st_size, f.stat().st_mtime) for f in os.scandir(folder_path) if f.is_file()]
+            files = list_files_recursive(folder_path)
 
             # Trier la liste de fichiers en fonction de leur taille, du plus grand au plus petit
             sorted_files = sorted(files, key=lambda f: f[1], reverse=True)
