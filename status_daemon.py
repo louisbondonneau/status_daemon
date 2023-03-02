@@ -499,7 +499,7 @@ class CheckStatus(Daemon):
             def human_readable_size(size):
                 for unit in ['', 'K', 'M', 'G', 'T']:
                     if size < 1024.0:
-                        return f"{size:.1f} {unit}B"
+                        return "{:.1f} {}B".format(size, unit)
                     size /= 1024.0
 
             # Créer une liste de tous les fichiers dans le dossier spécifié avec leur taille et date de modification
