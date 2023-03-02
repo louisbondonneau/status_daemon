@@ -221,9 +221,8 @@ class Daemon(object):
         self.target_directory = self.config.get_config('STATUS', 'target_directory')
         target_process = self.config.get_config('STATUS', 'target_process').split(',')
 
-
-        self.monitore_directory = self.config.get_config('STATUS', 'monitore_directory')  #  folder_path = '/data'
-        self.free_tb_limite = self.config.get_config('STATUS', 'free_tb_limite')  #  free_tb_limite = 2
+        self.monitore_directory = self.config.get_config('STATUS', 'monitore_directory')  # folder_path = '/data'
+        self.free_tb_limite = self.config.get_config('STATUS', 'free_tb_limite')  # free_tb_limite = 2
 
         self.target_process = {}
         try:
@@ -434,7 +433,7 @@ class Daemon(object):
                     if delta > 0:
                         time.sleep(delta)
                     self.run()
-                    if (self.i % 4 == 0):
+                    if ((self.i * self.pauseRunLoop) % int(3600) == 0):
                         self.check_free_space()
             else:
                 while self._canDaemonRun:
