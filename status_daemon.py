@@ -7,6 +7,7 @@ import traceback
 import os
 import re
 import time
+import shutil
 import psutil
 import signal
 from datetime import datetime
@@ -14,7 +15,14 @@ import subprocess
 import socket
 import numpy as np
 
-Version = "00.01.11"
+
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.base import MIMEBase
+from email import encoders
+import smtplib
+
+Version = "00.02.00"
 DEBUG = False  # !!! the simple print in DEBUG cause crash after closing session
 Host_name = socket.gethostname()
 Deamon_name = 'Deamon_' + Host_name
@@ -132,6 +140,51 @@ class Log_class():
         shutil.copyfile(file_, target)
         self.check_file_validity(target)
 
+    def attach_file(self, msg, nom_fichier):
+        if os.path.isfile(nom_fichier):
+            piece = open(nom_fichier, "rb")
+            part = MIMEBase('application', 'octet-stream')
+            part.set_payload((piece).read())
+            encoders.encode_base64(part)
+            part.add_header('Content-Disposition', "piece; filename= %s" % os.path.basename(nom_fichier))
+            msg.attach(part)
+
+    def sendMail(self, mail, subject, text, files=[]):
+        try:
+            msg = MIMEMultipart()
+            msg['From'] = socket.gethostname() + '@obs-nancay.fr'
+            msg['To'] = mail
+            msg['Subject'] = subject
+            msg.attach(MIMEText(text))
+            if (len(files) > 0):
+                for ifile in range(len(files)):
+                    self.attach_file(msg, files[ifile])
+                    # print(files[ifile])
+            mailserver = smtplib.SMTP('localhost')
+            # mailserver.set_debuglevel(1)
+            mailserver.sendmail(msg['From'], msg['To'].split(','), msg.as_string())
+            mailserver.quit()
+            self.log('Send a mail: \"%s\"" to %s' % (subject, mail), objet=Deamon_name)
+        except:
+            self.traceback_toerror(objet=Deamon_name)
+
+    def traceback_tomail(self, mail, objet=Deamon_name):
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        traceback_print = traceback.format_exception(exc_type, exc_value, exc_traceback)
+        for tb in traceback_print:
+            self.error(tb, objet=objet, timing=True)
+        self.sendMail(mail, "Error while running %s" % Deamon_name,
+                      "An error occure while running %s" % Deamon_name,
+                      [self.dir + self.logname + '.log',
+                       self.dir + self.logname + '.warning',
+                       self.dir + self.logname + '.error'])
+
+    def traceback_toerror(self, objet=Deamon_name):
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        traceback_print = traceback.format_exception(exc_type, exc_value, exc_traceback)
+        for tb in traceback_print:
+            self.error(tb, objet=objet, timing=True)
+
 
 class Daemon(object):
     """
@@ -154,6 +207,7 @@ class Daemon(object):
 
     def __init_config__(self):
         self.config = CONFIG_READER(CONFIG_FILE, log_obj=self.log)
+        self.mail_error = str(self.config.get_config('STATUS', 'mail_error'))
         self.logdir = self.config.get_config('STATUS', 'logdir')
         self.log.set_dir(self.logdir)
         self.pauseRunLoop = self.config.get_config('STATUS', 'UPDATE_TIME')
@@ -166,6 +220,11 @@ class Daemon(object):
         self.target_host = self.config.get_config('STATUS', 'target_host')
         self.target_directory = self.config.get_config('STATUS', 'target_directory')
         target_process = self.config.get_config('STATUS', 'target_process').split(',')
+
+
+        self.monitore_directory = self.config.get_config('STATUS', 'monitore_directory')  #  folder_path = '/data'
+        self.free_tb_limite = self.config.get_config('STATUS', 'free_tb_limite')  #  free_tb_limite = 2
+
         self.target_process = {}
         try:
             for process in target_process:
@@ -174,7 +233,6 @@ class Daemon(object):
                 self.target_process[process_name] = {'type': process_type, 'status': None}
         except IndexError:
             self.log.error("Can not decompress %s from config file" % (process), objet=Deamon_name)
-
 
     def _sigterm_handler(self, signum, frame):
         self._canDaemonRun = False
@@ -376,9 +434,12 @@ class Daemon(object):
                     if delta > 0:
                         time.sleep(delta)
                     self.run()
+                    if (self.i % 4 == 0):
+                        self.check_free_space()
             else:
                 while self._canDaemonRun:
                     self.run()
+                    self.check_free_space()
         except Exception:
             exc_type, exc_value, exc_traceback = sys.exc_info()
             traceback_print = traceback.format_exception(exc_type, exc_value, exc_traceback)
@@ -389,28 +450,75 @@ class Daemon(object):
 
     def run(self):
         pass
+
+    def check_free_space(self):
+        pass
 # ----------------------------------------------------------------------------------------------------
 # an example of a custom run method where you can set your useful python code
 
 
 class CheckStatus(Daemon):
     def __init__(self):
-        super().__init__()
-        self.host = socket.gethostname()
-        self.default_status()
-        self.last_update_time = time.time()
-        self.last_update_time = self.last_update_time - (self.last_update_time % self.max_update_time)
-        # self.sqldir = sqldir (now in config file)
-        # self.influxdir = influxdir (now in config file)
-        # self.id = int(id_prog) (now in config file)
-        # self.target_user = target_user (now in config file)
-        # self.target_host = target_host (now in config file)
-        # self.target_directory = target_directory (now in config file)
-        # self.Only_changes = Only_changes (now in config file)
+        try:
+            super().__init__()
+            self.host = socket.gethostname()
+            self.default_status()
+            self.last_update_time = time.time()
+            self.last_update_time = self.last_update_time - (self.last_update_time % self.max_update_time)
+            # self.sqldir = sqldir (now in config file)
+            # self.influxdir = influxdir (now in config file)
+            # self.id = int(id_prog) (now in config file)
+            # self.target_user = target_user (now in config file)
+            # self.target_host = target_host (now in config file)
+            # self.target_directory = target_directory (now in config file)
+            # self.Only_changes = Only_changes (now in config file)
+        except:
+            self.log.traceback_tomail(self.mail_error, objet=Deamon_name)
 
     def default_status(self):
         for process, process_info in self.target_process.items():
             self.target_process[process]['status'] = None
+
+    def check_free_space(self):
+        # Specify the folder path to check disk space
+        folder_path = self.monitore_directory
+        free_tb_limite = self.free_tb_limite
+
+        # Get the disk space usage of the specified folder (in bytes)
+        total, used, free = shutil.disk_usage(folder_path)
+
+        # Convert the free space from bytes to terabytes (TB)
+        free_tb = round(free / (1024 ** 4), 2)
+
+        if (free_tb < free_tb_limite):
+            formated_string = "Only {} To of free space remain on {}:{} (mail if < 2 To)".format(free_tb, self.host, folder_path)
+            self.log.error(formated_string)
+            formated_mail = formated_string + "\n" + "Listing of heavy files:\n\n"
+
+            # Fonction pour formater les tailles de fichier en unités lisibles par l'homme
+            def human_readable_size(size):
+                for unit in ['', 'K', 'M', 'G', 'T']:
+                    if size < 1024.0:
+                        return f"{size:.1f} {unit}B"
+                    size /= 1024.0
+
+            # Créer une liste de tous les fichiers dans le dossier spécifié avec leur taille et date de modification
+            files = [(f.name, f.stat().st_size, f.stat().st_mtime) for f in os.scandir(folder_path) if f.is_file()]
+
+            # Trier la liste de fichiers en fonction de leur taille, du plus grand au plus petit
+            sorted_files = sorted(files, key=lambda f: f[1], reverse=True)
+
+            # Afficher la liste des fichiers triés avec leur taille et date de modification
+            for i in range(len(sorted_files)):
+                file = sorted_files[i]
+                name = file[0]
+                size = human_readable_size(file[1])
+                mtime = datetime.datetime.fromtimestamp(file[2]).strftime('%b %d %H:%M')
+                if ((file[1] / 1024**3) > 1.0):  # if file > 1 Go
+                    formated_mail += "{:<8} {} {}\n".format(size, mtime, name)
+
+            self.log.sendMail(self.mail_error, formated_string,
+                              formated_mail)
 
     def run(self):
         # for p in psutil.process_iter():
@@ -703,6 +811,7 @@ class CheckStatus(Daemon):
             os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
             self.log.error('scp error: [%s]' % e, objet='scp')
 
+
 class CONFIG_READER():
     def __init__(self, config_file, log_obj=None):
         if log_obj is None:
@@ -754,6 +863,7 @@ class CONFIG_READER():
         if (self.dico[sector][obj] == 'None'):
             return None
         return str(self.dico[sector][obj])
+
 
 # ----------------------------------------------------------------------------------------------------
 # the main section
