@@ -508,9 +508,10 @@ class CheckStatus(Daemon):
                 for root, dirs, files in os.walk(folder_path):
                     for name in files:
                         file_path = os.path.join(root, name)
-                        file_size = os.path.getsize(file_path)
-                        file_mtime = os.path.getmtime(file_path)
-                        file_list.append((file_path, file_size, file_mtime))
+                        if os.access(file_path, os.R_OK):
+                            file_size = os.path.getsize(file_path)
+                            file_mtime = os.path.getmtime(file_path)
+                            file_list.append((file_path, file_size, file_mtime))
                 return file_list
 
             # Créer une liste de tous les fichiers dans le dossier spécifié avec leur taille et date de modification
