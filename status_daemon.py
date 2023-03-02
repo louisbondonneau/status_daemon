@@ -513,7 +513,7 @@ class CheckStatus(Daemon):
                 file = sorted_files[i]
                 name = file[0]
                 size = human_readable_size(file[1])
-                mtime = datetime.datetime.fromtimestamp(file[2]).strftime('%b %d %H:%M')
+                mtime = datetime.fromtimestamp(file[2]).strftime('%b %d %H:%M')
                 if ((file[1] / 1024**3) > 1.0):  # if file > 1 Go
                     formated_mail += "{:<8} {} {}\n".format(size, mtime, name)
 
