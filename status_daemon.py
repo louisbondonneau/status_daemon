@@ -491,7 +491,7 @@ class CheckStatus(Daemon):
         free_tb = round(free / (1024 ** 4), 2)
 
         if (free_tb < free_tb_limite):
-            formated_string = "Only {} To of free space remain on {}:{} (mail if < 2 To)".format(free_tb, self.host, folder_path)
+            formated_string = "Only {} To of free space remain on {}:{} (mail if free < {} To)".format(free_tb, self.host, folder_path, free_tb_limite)
             self.log.error(formated_string)
             formated_mail = formated_string + "\n" + "Listing of heavy files:\n\n"
 
